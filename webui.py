@@ -1,6 +1,9 @@
 """驭笔 HarnessPen — Web UI 服务器 (FastAPI)。"""
 
 import json
+import os
+import time
+import uuid
 import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
@@ -18,6 +21,64 @@ app = FastAPI(title="驭笔 HarnessPen", description="基于 Harness Engineering
 
 # 静态文件服务
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# ─── 文章存储 ───
+GENERATED_DIR = "generated"
+INDEX_FILE = os.path.join(GENERATED_DIR, "index.json")
+
+os.makedirs(GENERATED_DIR, exist_ok=True)
+
+
+def _load_index() -> list:
+    if not os.path.exists(INDEX_FILE):
+        return []
+    with open(INDEX_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _save_index(index: list):
+    with open(INDEX_FILE, "w", encoding="utf-8") as f:
+        json.dump(index, f, ensure_ascii=False, indent=2)
+
+
+def save_article(topic: str, content: str, source: str = "generate") -> str:
+    """保存文章到 generated/ 目录，返回 article_id。"""
+    article_id = time.strftime("%Y%m%d%H%M%S") + "-" + uuid.uuid4().hex[:6]
+    filename = f"{article_id}.md"
+    filepath = os.path.join(GENERATED_DIR, filename)
+
+    with open(filepath, "w", encoding="utf-8") as f:
+        f.write(content)
+
+    index = _load_index()
+    index.insert(0, {
+        "id": article_id,
+        "topic": topic,
+        "source": source,
+        "filename": filename,
+        "created_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "char_count": len(content),
+    })
+    _save_index(index)
+
+    return article_id
+
+
+def get_article(article_id: str) -> str | None:
+    """根据 ID 获取文章内容。"""
+    filepath = os.path.join(GENERATED_DIR, f"{article_id}.md")
+    if not os.path.exists(filepath):
+        return None
+    with open(filepath, "r", encoding="utf-8") as f:
+        return f.read()
+
+
+def list_articles(limit: int = 50) -> list:
+    """返回文章列表（最新在前）。"""
+    return _load_index()[:limit]
+
+
+# ─── API ───
 
 
 class GenerateRequest(BaseModel):
@@ -95,7 +156,10 @@ async def generate_stream(topic: str, requirements: str = "1000字, 博客风格
             # ④ 异常容错全程覆盖
             yield from _progress_yield("progress", {"step": "resilience", "status": "done", "message": "④ 异常容错全程守护 🤖"})
 
-            yield from _progress_yield("result", {"result": result})
+            # 保存文章
+            article_id = save_article(topic, result, source="generate")
+
+            yield from _progress_yield("result", {"result": result, "article_id": article_id})
 
         except Exception as e:
             yield from _progress_yield("error", {"error": str(e)})
@@ -132,6 +196,22 @@ async def compare(req: CompareRequest):
             status_code=500,
             content={"success": False, "error": str(e)},
         )
+
+
+@app.get("/api/articles")
+async def get_articles(limit: int = 50):
+    """获取文章列表（最新在前）。"""
+    articles = list_articles(limit)
+    return {"success": True, "articles": articles}
+
+
+@app.get("/api/articles/{article_id}")
+async def get_article_by_id(article_id: str):
+    """获取单篇文章内容。"""
+    content = get_article(article_id)
+    if content is None:
+        return JSONResponse(status_code=404, content={"success": False, "error": "文章不存在"})
+    return {"success": True, "content": content}
 
 
 if __name__ == "__main__":

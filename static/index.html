@@ -168,9 +168,26 @@
                 <button data-tab="generate" class="tab-btn tab-active px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors duration-200">生成</button>
                 <button data-tab="rewrite" class="tab-btn tab-inactive px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors duration-200">改写</button>
                 <button data-tab="compare" class="tab-btn tab-inactive px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors duration-200">对比</button>
+                <button id="history-toggle" class="px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors duration-200 bg-white text-indigo-500 hover:bg-indigo-50" onclick="toggleHistory()">
+                    <svg class="w-4 h-4 inline" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    历史
+                </button>
             </nav>
         </div>
     </header>
+
+    <!-- 历史文章面板 -->
+    <div id="history-panel" class="hidden max-w-6xl mx-auto px-4 mt-2">
+        <div class="card p-4 max-h-[300px] overflow-y-auto">
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="text-sm font-semibold text-indigo-900">历史文章</h3>
+                <span id="history-count" class="text-xs text-indigo-400">0 篇</span>
+            </div>
+            <div id="history-list" class="space-y-1">
+                <div class="text-sm text-gray-400 text-center py-4">暂无文章</div>
+            </div>
+        </div>
+    </div>
 
     <!-- 主内容区 -->
     <main class="max-w-6xl mx-auto px-4 py-6">
@@ -382,6 +399,78 @@
             helpArrow.style.transform = helpContent.classList.contains('hidden') ? 'rotate(0deg)' : 'rotate(180deg)';
         });
 
+        // ─── 历史文章 ───
+        let historyArticles = [];
+
+        function toggleHistory() {
+            document.getElementById('history-panel').classList.toggle('hidden');
+            if (!document.getElementById('history-panel').classList.contains('hidden')) {
+                loadHistory();
+            }
+        }
+
+        async function loadHistory() {
+            try {
+                const res = await fetch('/api/articles');
+                const data = await res.json();
+                if (data.success) {
+                    historyArticles = data.articles;
+                    renderHistoryList();
+                }
+            } catch (e) {
+                console.error('加载历史失败:', e);
+            }
+        }
+
+        function renderHistoryList() {
+            const list = document.getElementById('history-list');
+            const count = document.getElementById('history-count');
+            count.textContent = historyArticles.length + ' 篇';
+
+            if (historyArticles.length === 0) {
+                list.innerHTML = '<div class="text-sm text-gray-400 text-center py-4">暂无文章</div>';
+                return;
+            }
+
+            list.innerHTML = historyArticles.map(a => `
+                <div class="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-indigo-50 cursor-pointer transition-colors text-sm"
+                     onclick="loadArticle('${a.id}')">
+                    <div class="flex-1 min-w-0">
+                        <div class="text-gray-800 truncate font-medium">${a.topic}</div>
+                        <div class="text-gray-400 text-xs">${a.created_at} · ${a.char_count} 字 · ${a.source}</div>
+                    </div>
+                    <svg class="w-4 h-4 text-indigo-300 flex-shrink-0 ml-2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                </div>
+            `).join('');
+        }
+
+        async function loadArticle(articleId) {
+            try {
+                const res = await fetch(`/api/articles/${articleId}`);
+                const data = await res.json();
+                if (data.success) {
+                    // 查找文章信息
+                    const article = historyArticles.find(a => a.id === articleId);
+                    const container = document.getElementById('gen-result-container');
+                    // 切换到生成 tab 显示
+                    document.querySelector('[data-tab="generate"]').click();
+                    renderResult(container, data.content, article?.topic || '文章');
+                }
+            } catch (e) {
+                console.error('加载文章失败:', e);
+            }
+        }
+
+        function addToHistory(article) {
+            historyArticles.unshift(article);
+            renderHistoryList();
+            // 更新计数
+            document.getElementById('history-count').textContent = historyArticles.length + ' 篇';
+        }
+
+        // 页面加载时自动加载历史
+        loadHistory();
+
         // Loading 状态
         function showLoading(container, text) {
             container.innerHTML = `
@@ -554,6 +643,15 @@
                 const data = JSON.parse(e.data);
                 evtSource.close();
                 renderResult(container, data.result, topic);
+                if (data.article_id) {
+                    addToHistory({
+                        id: data.article_id,
+                        topic: topic,
+                        source: 'generate',
+                        created_at: new Date().toLocaleString('zh-CN'),
+                        char_count: data.result.length,
+                    });
+                }
                 btn.disabled = false;
             });
 
