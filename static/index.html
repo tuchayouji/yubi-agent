@@ -393,9 +393,26 @@
         }
 
         // 渲染结果
-        function renderResult(container, markdown) {
-            const html = marked.parse(markdown || '');
-            container.innerHTML = `<div class="result-content fade-in">${html}</div>`;
+        let lastMarkdown = '';
+        let lastTopic = '';
+
+        function renderResult(container, markdown, topic) {
+            lastMarkdown = markdown || '';
+            if (topic) lastTopic = topic;
+
+            const toolbar = `
+                <div class="flex items-center justify-end gap-2 mb-3 pb-2 border-b border-indigo-100">
+                    <span class="text-xs text-gray-400">${lastMarkdown.length} 字符</span>
+                    <button onclick="downloadArticle()" class="text-xs text-indigo-500 hover:text-indigo-700 flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-indigo-50 hover:bg-indigo-100 transition-all cursor-pointer">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                        下载 .md
+                    </button>
+                </div>
+            `;
+
+            const html = marked.parse(lastMarkdown || '');
+            container.innerHTML = toolbar + `<div class="result-content fade-in">${html}</div>`;
+
             // 给所有 <pre> 添加复制按钮
             container.querySelectorAll('pre').forEach(pre => {
                 const btn = document.createElement('button');
@@ -411,6 +428,36 @@
                 pre.style.position = 'relative';
                 pre.appendChild(btn);
             });
+        }
+
+        // 下载文章
+        function downloadArticle() {
+            if (!lastMarkdown) return;
+            const filename = (lastTopic || '文章').replace(/[\\/:*?"<>|]/g, '_') + '.md';
+            const blob = new Blob([lastMarkdown], { type: 'text/markdown;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // 下载任意文本（用于对比页的基础版）
+        function downloadText(text, name) {
+            if (!text) return;
+            const filename = (name || '文章').replace(/[\\/:*?"<>|]/g, '_') + '.md';
+            const blob = new Blob([text], { type: 'text/markdown;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
         }
 
         // 全局复制函数（用于使用说明中的代码块）
@@ -506,7 +553,7 @@
             evtSource.addEventListener('result', (e) => {
                 const data = JSON.parse(e.data);
                 evtSource.close();
-                renderResult(container, data.result);
+                renderResult(container, data.result, topic);
                 btn.disabled = false;
             });
 
@@ -541,7 +588,7 @@
                 });
                 const data = await res.json();
                 if (data.success) {
-                    renderResult(container, data.result);
+                    renderResult(container, data.result, `改写-${instruction}`);
                 } else {
                     renderError(container, data.error || '改写失败');
                 }
@@ -571,8 +618,16 @@
                 });
                 const data = await res.json();
                 if (data.success) {
-                    basicContainer.innerHTML = `<div class="result-content fade-in text-sm text-gray-700 whitespace-pre-wrap">${data.basic}</div>`;
-                    renderResult(harnessContainer, data.harness);
+                    basicContainer.innerHTML = `
+                        <div class="flex items-center justify-end gap-2 mb-2 pb-1 border-b border-red-100">
+                            <button onclick="downloadText(\`${data.basic.replace(/`/g, '\\`')}\`, '${topic}-基础版')" class="text-xs text-red-400 hover:text-red-600 flex items-center gap-1 cursor-pointer">
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                                下载
+                            </button>
+                        </div>
+                        <div class="result-content fade-in text-sm text-gray-700 whitespace-pre-wrap">${data.basic}</div>
+                    `;
+                    renderResult(harnessContainer, data.harness, `${topic}-驭笔版`);
                 } else {
                     renderError(basicContainer, data.error || '对比失败');
                     renderError(harnessContainer, data.error || '对比失败');
