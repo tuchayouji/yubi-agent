@@ -85,19 +85,6 @@
         .result-content pre code {
             background: none; padding: 0; color: inherit; font-size: inherit;
         }
-        .pre-header {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 0.5em 1em; margin: -1em -1em 0.5em -1em;
-            border-bottom: 1px solid rgba(255,255,255,0.08);
-            background: rgba(0,0,0,0.15);
-        }
-        .pre-header .copy-btn-code {
-            background: none; color: #A5B4FC; border: none;
-            padding: 2px 6px; font-size: 0.7rem;
-            cursor: pointer; border-radius: 4px;
-            transition: color 200ms ease;
-        }
-        .pre-header .copy-btn-code:hover { color: white; background: rgba(255,255,255,0.1); }
         .result-content blockquote { border-left: 3px solid var(--color-secondary); padding-left: 1em; color: #6366F1; margin-bottom: 1em; }
         .progress-step {
             display: flex;
@@ -325,15 +312,15 @@
                     </div>
                     <div>
                         <h3 class="font-semibold text-sm mb-3 text-indigo-600">CLI 命令</h3>
-                        <div class="relative group">
-                            <div class="bg-[#1E1B4B] rounded-lg p-4 font-mono text-sm leading-relaxed overflow-x-auto">
-                                <div class="flex items-center justify-between mb-2 pb-2 border-b border-indigo-800/50">
-                                    <span class="text-gray-400 text-xs">Terminal</span>
-                                    <button onclick="copyCode(this)" class="text-gray-400 hover:text-white text-xs flex items-center gap-1 transition-colors">
-                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
-                                        复制
-                                    </button>
-                                </div>
+                        <div class="bg-[#1E1B4B] rounded-lg overflow-hidden">
+                            <div class="flex items-center justify-between px-4 py-2 border-b border-indigo-800/50">
+                                <span class="text-gray-400 text-xs">Terminal</span>
+                                <button onclick="copyCode(this)" class="text-gray-400 hover:text-white text-xs flex items-center gap-1 transition-colors">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                                    复制
+                                </button>
+                            </div>
+                            <div class="p-4 font-mono text-sm leading-relaxed overflow-x-auto">
                                 <div class="text-green-400"># 生成文章</div>
                                 <div class="text-white">python main.py generate \</div>
                                 <div class="text-white pl-4">&nbsp;&nbsp;-t <span class="text-yellow-300">"主题"</span> -r <span class="text-yellow-300">"要求"</span></div>
@@ -519,25 +506,34 @@
             const html = marked.parse(lastMarkdown || '');
             container.innerHTML = toolbar + `<div class="result-content fade-in">${html}</div>`;
 
-            // 给所有 <pre> 添加头部栏（含复制按钮）
+            // 给所有 <pre> 替换为容器+header+pre 结构（让 header 不随内容滚动）
             container.querySelectorAll('pre').forEach(pre => {
-                // 跳过已添加头部栏的 pre（避免重复）
-                if (pre.querySelector('.pre-header')) return;
+                if (pre.closest('.code-wrap')) return; // 已处理过
+                const wrap = document.createElement('div');
+                wrap.className = 'code-wrap bg-[#1E1B4B] rounded-lg overflow-hidden my-3';
                 const header = document.createElement('div');
-                header.className = 'pre-header';
-                header.innerHTML = '<span class="text-xs text-gray-500">Code</span>';
+                header.className = 'flex items-center justify-between px-3 py-1.5 border-b border-indigo-800/50';
+                header.innerHTML = '<span class="text-xs text-gray-400">Code</span>';
                 const btn = document.createElement('button');
-                btn.className = 'copy-btn-code';
+                btn.className = 'text-gray-400 hover:text-white text-xs flex items-center gap-1 transition-colors';
                 btn.textContent = '复制';
                 btn.onclick = () => {
-                    const text = pre.textContent.replace(/^Code\s*/, '').trim();
+                    const text = pre.textContent.trim();
                     navigator.clipboard.writeText(text).then(() => {
                         btn.textContent = '已复制 ✓';
                         setTimeout(() => { btn.textContent = '复制'; }, 2000);
                     });
                 };
                 header.appendChild(btn);
-                pre.insertBefore(header, pre.firstChild);
+                // 调整 pre 样式，去掉原有的圆角和边距
+                pre.style.background = 'none';
+                pre.style.padding = '0.75em 1em';
+                pre.style.margin = '0';
+                pre.style.borderRadius = '0';
+                // 组装: wrap > header + pre
+                pre.parentNode.insertBefore(wrap, pre);
+                wrap.appendChild(header);
+                wrap.appendChild(pre);
             });
         }
 
