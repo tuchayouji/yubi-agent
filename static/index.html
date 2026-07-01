@@ -485,8 +485,23 @@
         let lastMarkdown = '';
         let lastTopic = '';
 
+        // 清洗 LLM 输出：去除开头结尾的 ```markdown / ```python / ``` 包裹
+        function cleanMarkdown(raw) {
+            if (!raw) return '';
+            let text = raw.trim();
+            // 去掉开头的 ```markdown, ```python, ```text, ```html 等
+            text = text.replace(/^```\w*\s*\n/, '');
+            // 去掉结尾的 ```
+            text = text.replace(/\n```\s*$/, '');
+            // 如果去掉包裹后又出现新的包裹（双层包裹），递归清洗
+            if (/^```/.test(text)) {
+                return cleanMarkdown(text);
+            }
+            return text.trim();
+        }
+
         function renderResult(container, markdown, topic) {
-            lastMarkdown = markdown || '';
+            lastMarkdown = cleanMarkdown(markdown || '');
             if (topic) lastTopic = topic;
 
             const toolbar = `
