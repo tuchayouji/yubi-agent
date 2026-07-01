@@ -6,7 +6,7 @@ import time
 import uuid
 import uvicorn
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -16,6 +16,7 @@ import context
 import constraint
 import pipeline
 import quality
+from utils import export
 
 app = FastAPI(title="驭笔 HarnessPen", description="基于 Harness Engineering 的智能写作助手")
 
@@ -212,6 +213,33 @@ async def get_article_by_id(article_id: str):
     if content is None:
         return JSONResponse(status_code=404, content={"success": False, "error": "文章不存在"})
     return {"success": True, "content": content}
+
+
+MIME_MAP = {"md": "text/markdown", "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "pdf": "application/pdf"}
+EXPORT_FUNCS = {"md": export.export_md, "docx": export.export_docx, "pdf": export.export_pdf}
+
+
+@app.get("/api/download/{article_id}")
+async def download_article(article_id: str, format: str = "md"):
+    """下载文章（支持 md / docx / pdf）。"""
+    content = get_article(article_id)
+    if content is None:
+        return JSONResponse(status_code=404, content={"success": False, "error": "文章不存在"})
+
+    fmt = format.lower()
+    if fmt not in EXPORT_FUNCS:
+        return JSONResponse(status_code=400, content={"success": False, "error": f"不支持的格式: {fmt}，支持: md, docx, pdf"})
+
+    try:
+        data = EXPORT_FUNCS[fmt](content)
+        filename = export._get_filename(article_id, fmt)
+        return Response(
+            content=data,
+            media_type=MIME_MAP.get(fmt, "application/octet-stream"),
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
 
 
 if __name__ == "__main__":
