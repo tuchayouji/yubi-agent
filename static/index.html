@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>驭笔 HarnessPen — 智能写作助手</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Space+Grotesk:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --color-primary: #6366F1;
+            --color-secondary: #818CF8;
+            --color-cta: #10B981;
+            --color-bg: #F5F3FF;
+            --color-text: #312E81;
+        }
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background-color: var(--color-bg);
+            color: var(--color-text);
+        }
+        h1, h2, h3, h4 {
+            font-family: 'Archivo', sans-serif;
+        }
+        .tab-active {
+            background-color: var(--color-primary);
+            color: white;
+        }
+        .tab-inactive {
+            background-color: white;
+            color: var(--color-text);
+        }
+        .tab-inactive:hover {
+            background-color: #E0E7FF;
+        }
+        .btn-primary {
+            background-color: var(--color-cta);
+            color: white;
+            transition: all 200ms ease;
+        }
+        .btn-primary:hover:not(:disabled) {
+            background-color: #059669;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .card {
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(99, 102, 241, 0.08);
+            border: 1px solid #E0E7FF;
+        }
+        .input-field {
+            background-color: #FAFAFF;
+            border: 1px solid #E0E7FF;
+            border-radius: 8px;
+            transition: border-color 200ms ease, box-shadow 200ms ease;
+        }
+        .input-field:focus {
+            outline: none;
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+        }
+        .result-content {
+            line-height: 1.75;
+        }
+        .result-content h1 { font-size: 1.8em; font-weight: 700; margin-top: 1em; margin-bottom: 0.5em; }
+        .result-content h2 { font-size: 1.5em; font-weight: 600; margin-top: 1em; margin-bottom: 0.5em; }
+        .result-content h3 { font-size: 1.2em; font-weight: 600; margin-top: 0.8em; margin-bottom: 0.4em; }
+        .result-content p { margin-bottom: 1em; }
+        .result-content ul, .result-content ol { margin-left: 1.5em; margin-bottom: 1em; }
+        .result-content li { margin-bottom: 0.3em; }
+        .result-content code { background-color: #F5F3FF; padding: 2px 6px; border-radius: 4px; font-size: 0.9em; }
+        .result-content pre { background-color: #1E1B4B; color: #E0E7FF; padding: 1em; border-radius: 8px; overflow-x: auto; margin-bottom: 1em; }
+        .result-content blockquote { border-left: 3px solid var(--color-secondary); padding-left: 1em; color: #6366F1; margin-bottom: 1em; }
+        .spinner {
+            border: 3px solid #E0E7FF;
+            border-top: 3px solid var(--color-primary);
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .fade-in {
+            animation: fadeIn 200ms ease;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <!-- 顶部导航 -->
+    <header class="sticky top-0 z-50 backdrop-blur-md bg-white/80 border-b border-indigo-100">
+        <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <svg class="w-6 h-6 text-indigo-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+                </svg>
+                <h1 class="text-lg font-bold" style="font-family: 'Archivo', sans-serif;">驭笔 HarnessPen</h1>
+                <span class="text-xs text-indigo-400 hidden sm:inline">Harness Engineering 写作助手</span>
+            </div>
+            <nav class="flex gap-1" id="tab-nav">
+                <button data-tab="generate" class="tab-btn tab-active px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors duration-200">生成</button>
+                <button data-tab="rewrite" class="tab-btn tab-inactive px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors duration-200">改写</button>
+                <button data-tab="compare" class="tab-btn tab-inactive px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors duration-200">对比</button>
+            </nav>
+        </div>
+    </header>
+
+    <!-- 主内容区 -->
+    <main class="max-w-6xl mx-auto px-4 py-6">
+
+        <!-- 生成 Tab -->
+        <div id="tab-generate" class="tab-content grid grid-cols-1 lg:grid-cols-5 gap-6">
+            <div class="lg:col-span-2">
+                <div class="card p-6">
+                    <h2 class="text-base font-semibold mb-4">生成文章</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <label for="gen-topic" class="block text-sm font-medium mb-1.5">文章主题</label>
+                            <input id="gen-topic" type="text" class="input-field w-full px-4 py-2.5 text-sm" placeholder="例如：AI 发展史" required>
+                        </div>
+                        <div>
+                            <label for="gen-req" class="block text-sm font-medium mb-1.5">写作要求</label>
+                            <textarea id="gen-req" class="input-field w-full px-4 py-2.5 text-sm resize-none" rows="3" placeholder="字数、风格、体裁等">1000字, 博客风格</textarea>
+                        </div>
+                        <button id="gen-btn" class="btn-primary w-full py-2.5 rounded-lg font-medium text-sm flex items-center justify-center gap-2 cursor-pointer">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                            生成文章
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="lg:col-span-3">
+                <div class="card p-6 min-h-[400px]" id="gen-result-container">
+                    <div class="text-indigo-300 text-sm flex items-center justify-center h-full" style="min-height: 350px;">
+                        在左侧填写主题和要求，点击生成文章
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 改写 Tab -->
+        <div id="tab-rewrite" class="tab-content hidden grid grid-cols-1 lg:grid-cols-5 gap-6">
+            <div class="lg:col-span-2">
+                <div class="card p-6">
+                    <h2 class="text-base font-semibold mb-4">改写文章</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <label for="rw-original" class="block text-sm font-medium mb-1.5">原文内容</label>
+                            <textarea id="rw-original" class="input-field w-full px-4 py-2.5 text-sm resize-none" rows="6" placeholder="粘贴需要改写的文章..."></textarea>
+                        </div>
+                        <div>
+                            <label for="rw-instruction" class="block text-sm font-medium mb-1.5">改写指令</label>
+                            <select id="rw-instruction" class="input-field w-full px-4 py-2.5 text-sm cursor-pointer">
+                                <option value="润色">润色</option>
+                                <option value="缩写">缩写</option>
+                                <option value="扩写">扩写</option>
+                                <option value="改为正式风格">改为正式风格</option>
+                                <option value="改为口语化风格">改为口语化风格</option>
+                            </select>
+                        </div>
+                        <button id="rw-btn" class="btn-primary w-full py-2.5 rounded-lg font-medium text-sm flex items-center justify-center gap-2 cursor-pointer">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                            改写文章
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="lg:col-span-3">
+                <div class="card p-6 min-h-[400px]" id="rw-result-container">
+                    <div class="text-indigo-300 text-sm flex items-center justify-center h-full" style="min-height: 350px;">
+                        在左侧填写原文和指令，点击改写
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 对比 Tab -->
+        <div id="tab-compare" class="tab-content hidden grid grid-cols-1 lg:grid-cols-5 gap-6">
+            <div class="lg:col-span-2">
+                <div class="card p-6">
+                    <h2 class="text-base font-semibold mb-4">对比：基础版 vs 驭笔版</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <label for="cmp-topic" class="block text-sm font-medium mb-1.5">文章主题</label>
+                            <input id="cmp-topic" type="text" class="input-field w-full px-4 py-2.5 text-sm" placeholder="例如：AI 发展史" required>
+                        </div>
+                        <div>
+                            <label for="cmp-req" class="block text-sm font-medium mb-1.5">写作要求</label>
+                            <textarea id="cmp-req" class="input-field w-full px-4 py-2.5 text-sm resize-none" rows="3" placeholder="字数、风格等">500字</textarea>
+                        </div>
+                        <button id="cmp-btn" class="btn-primary w-full py-2.5 rounded-lg font-medium text-sm flex items-center justify-center gap-2 cursor-pointer">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+                            开始对比
+                        </button>
+                    </div>
+                    <p class="text-xs text-indigo-400 mt-3">基础版：无驾驭工程，直接调用 LLM。驭笔版：六大组件全链路管控。</p>
+                </div>
+            </div>
+            <div class="lg:col-span-3">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="bg-red-100 text-red-700 text-xs font-medium px-2.5 py-1 rounded-full">基础版</span>
+                        </div>
+                        <div class="card p-4 min-h-[350px]" id="cmp-basic-container">
+                            <div class="text-gray-400 text-sm flex items-center justify-center h-full" style="min-height: 300px;">点击"开始对比"</div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="bg-green-100 text-green-700 text-xs font-medium px-2.5 py-1 rounded-full">驭笔版</span>
+                        </div>
+                        <div class="card p-4 min-h-[350px]" id="cmp-harness-container">
+                            <div class="text-gray-400 text-sm flex items-center justify-center h-full" style="min-height: 300px;">点击"开始对比"</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 使用说明 -->
+        <section class="mt-8">
+            <button id="help-toggle" class="w-full card p-4 flex items-center justify-between cursor-pointer transition-colors duration-200 hover:bg-indigo-50">
+                <span class="flex items-center gap-2 font-medium text-sm">
+                    <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    使用说明
+                </span>
+                <svg id="help-arrow" class="w-4 h-4 text-indigo-400 transition-transform duration-200" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+            </button>
+            <div id="help-content" class="hidden mt-3 card p-6 fade-in">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                        <h3 class="font-semibold text-sm mb-3 text-indigo-600">Web UI 用法</h3>
+                        <ul class="text-sm space-y-2 text-gray-600">
+                            <li><strong>生成</strong>：输入主题和要求，点击生成文章</li>
+                            <li><strong>改写</strong>：粘贴原文，选择改写指令</li>
+                            <li><strong>对比</strong>：同一主题，对比基础版和驭笔版输出</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-sm mb-3 text-indigo-600">CLI 命令</h3>
+                        <div class="text-sm space-y-2 text-gray-600 font-mono bg-indigo-50/50 p-3 rounded-lg">
+                            <div># 生成文章</div>
+                            <div>python main.py generate \<br>&nbsp;&nbsp;-t "主题" -r "要求"</div>
+                            <div class="mt-2"># 改写文章</div>
+                            <div>python main.py rewrite \<br>&nbsp;&nbsp;-o "原文" -i "润色"</div>
+                            <div class="mt-2"># 对比</div>
+                            <div>python main.py compare \<br>&nbsp;&nbsp;-t "主题" -r "500字"</div>
+                        </div>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-sm mb-3 text-indigo-600">六大组件</h3>
+                        <ul class="text-sm space-y-1.5 text-gray-600">
+                            <li><strong>① 行为约束</strong>：身份/格式/边界规则</li>
+                            <li><strong>② 流程编排</strong>：大纲→分段→整合</li>
+                            <li><strong>③ 质量校验</strong>：多层校验+自动重写</li>
+                            <li><strong>④ 异常容错</strong>：重试3次+降级兜底</li>
+                            <li><strong>⑤ 结构化上下文</strong>：分层隔离注入</li>
+                            <li><strong>⑥ 工具系统</strong>：白名单+限流+审计</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="max-w-6xl mx-auto px-4 py-6 text-center text-xs text-indigo-300">
+        驭笔 HarnessPen · 基于 Harness Engineering · Python + LangChain + LangGraph
+    </footer>
+
+    <script>
+        // Tab 切换
+        const tabBtns = document.querySelectorAll('.tab-btn');
+        const tabContents = document.querySelectorAll('.tab-content');
+        tabBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tab = btn.dataset.tab;
+                tabBtns.forEach(b => {
+                    b.classList.remove('tab-active');
+                    b.classList.add('tab-inactive');
+                });
+                btn.classList.remove('tab-inactive');
+                btn.classList.add('tab-active');
+                tabContents.forEach(c => {
+                    if (c.id === `tab-${tab}`) {
+                        c.classList.remove('hidden');
+                    } else {
+                        c.classList.add('hidden');
+                    }
+                });
+            });
+        });
+
+        // 使用说明折叠
+        const helpToggle = document.getElementById('help-toggle');
+        const helpContent = document.getElementById('help-content');
+        const helpArrow = document.getElementById('help-arrow');
+        helpToggle.addEventListener('click', () => {
+            helpContent.classList.toggle('hidden');
+            helpArrow.style.transform = helpContent.classList.contains('hidden') ? 'rotate(0deg)' : 'rotate(180deg)';
+        });
+
+        // Loading 状态
+        function showLoading(container, text) {
+            container.innerHTML = `
+                <div class="flex flex-col items-center justify-center gap-3" style="min-height: 300px;">
+                    <div class="spinner"></div>
+                    <p class="text-sm text-indigo-400">${text || '正在处理...'}</p>
+                </div>
+            `;
+        }
+
+        // 渲染结果
+        function renderResult(container, markdown) {
+            const html = marked.parse(markdown || '');
+            container.innerHTML = `<div class="result-content fade-in">${html}</div>`;
+        }
+
+        // 渲染错误
+        function renderError(container, message) {
+            container.innerHTML = `
+                <div class="flex flex-col items-center justify-center gap-3 fade-in" style="min-height: 300px;">
+                    <svg class="w-8 h-8 text-red-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <p class="text-sm text-red-500">${message}</p>
+                </div>
+            `;
+        }
+
+        // 生成
+        document.getElementById('gen-btn').addEventListener('click', async () => {
+            const topic = document.getElementById('gen-topic').value.trim();
+            const requirements = document.getElementById('gen-req').value.trim();
+            if (!topic) { alert('请输入文章主题'); return; }
+            const btn = document.getElementById('gen-btn');
+            const container = document.getElementById('gen-result-container');
+            btn.disabled = true;
+            showLoading(container, '正在生成文章（六大组件管控中）...');
+            try {
+                const res = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ topic, requirements })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    renderResult(container, data.result);
+                } else {
+                    renderError(container, data.error || '生成失败');
+                }
+            } catch (e) {
+                renderError(container, e.message);
+            } finally {
+                btn.disabled = false;
+            }
+        });
+
+        // 改写
+        document.getElementById('rw-btn').addEventListener('click', async () => {
+            const original = document.getElementById('rw-original').value.trim();
+            const instruction = document.getElementById('rw-instruction').value;
+            if (!original) { alert('请输入原文内容'); return; }
+            const btn = document.getElementById('rw-btn');
+            const container = document.getElementById('rw-result-container');
+            btn.disabled = true;
+            showLoading(container, '正在改写文章...');
+            try {
+                const res = await fetch('/api/rewrite', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ original, instruction })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    renderResult(container, data.result);
+                } else {
+                    renderError(container, data.error || '改写失败');
+                }
+            } catch (e) {
+                renderError(container, e.message);
+            } finally {
+                btn.disabled = false;
+            }
+        });
+
+        // 对比
+        document.getElementById('cmp-btn').addEventListener('click', async () => {
+            const topic = document.getElementById('cmp-topic').value.trim();
+            const requirements = document.getElementById('cmp-req').value.trim();
+            if (!topic) { alert('请输入文章主题'); return; }
+            const btn = document.getElementById('cmp-btn');
+            const basicContainer = document.getElementById('cmp-basic-container');
+            const harnessContainer = document.getElementById('cmp-harness-container');
+            btn.disabled = true;
+            showLoading(basicContainer, '基础版生成中...');
+            showLoading(harnessContainer, '驭笔版生成中...');
+            try {
+                const res = await fetch('/api/compare', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ topic, requirements })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    basicContainer.innerHTML = `<div class="result-content fade-in text-sm text-gray-700 whitespace-pre-wrap">${data.basic}</div>`;
+                    renderResult(harnessContainer, data.harness);
+                } else {
+                    renderError(basicContainer, data.error || '对比失败');
+                    renderError(harnessContainer, data.error || '对比失败');
+                }
+            } catch (e) {
+                renderError(basicContainer, e.message);
+                renderError(harnessContainer, e.message);
+            } finally {
+                btn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>
