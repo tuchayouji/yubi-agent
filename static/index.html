@@ -77,6 +77,34 @@
         .result-content code { background-color: #F5F3FF; padding: 2px 6px; border-radius: 4px; font-size: 0.9em; }
         .result-content pre { background-color: #1E1B4B; color: #E0E7FF; padding: 1em; border-radius: 8px; overflow-x: auto; margin-bottom: 1em; }
         .result-content blockquote { border-left: 3px solid var(--color-secondary); padding-left: 1em; color: #6366F1; margin-bottom: 1em; }
+        .progress-step {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #F5F3FF;
+            transition: all 200ms ease;
+        }
+        .progress-step:last-child { border-bottom: none; }
+        .step-icon {
+            width: 24px;
+            height: 24px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .spinner-sm {
+            border: 2px solid #E0E7FF;
+            border-top: 2px solid var(--color-primary);
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            animation: spin 0.8s linear infinite;
+        }
         .spinner {
             border: 3px solid #E0E7FF;
             border-top: 3px solid var(--color-primary);
@@ -346,7 +374,31 @@
             `;
         }
 
-        // 生成
+        // 进度步骤模板
+        const STEP_NAMES = {
+            context:    { num: "⑤", label: "结构化上下文注入" },
+            constraint: { num: "①", label: "行为约束应用" },
+            pipeline:   { num: "②", label: "流程编排（LLM 调用）" },
+            quality:    { num: "③", label: "质量校验" },
+            resilience: { num: "④", label: "异常容错全程守护" },
+        };
+
+        function buildProgressHTML() {
+            let html = '<div class="space-y-0">';
+            for (const [key, val] of Object.entries(STEP_NAMES)) {
+                const bg = key === 'context' ? 'bg-indigo-600' : 'bg-indigo-200';
+                html += `
+                    <div class="progress-step" id="step-${key}">
+                        <div class="step-icon ${bg} text-white" id="icon-${key}">${val.num}</div>
+                        <span class="text-sm text-gray-500" id="msg-${key}">${val.label}... <span class="text-indigo-300">等待中</span></span>
+                    </div>
+                `;
+            }
+            html += '</div>';
+            return html;
+        }
+
+        // 生成 - 使用 SSE 流式推送进度
         document.getElementById('gen-btn').addEventListener('click', async () => {
             const topic = document.getElementById('gen-topic').value.trim();
             const requirements = document.getElementById('gen-req').value.trim();
@@ -354,24 +406,58 @@
             const btn = document.getElementById('gen-btn');
             const container = document.getElementById('gen-result-container');
             btn.disabled = true;
-            showLoading(container, '正在生成文章（六大组件管控中）...');
-            try {
-                const res = await fetch('/api/generate', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ topic, requirements })
-                });
-                const data = await res.json();
-                if (data.success) {
-                    renderResult(container, data.result);
-                } else {
-                    renderError(container, data.error || '生成失败');
-                }
-            } catch (e) {
-                renderError(container, e.message);
-            } finally {
-                btn.disabled = false;
+
+            // 显示进度条
+            container.innerHTML = buildProgressHTML();
+
+            // 重置所有步骤状态
+            for (const key of Object.keys(STEP_NAMES)) {
+                const icon = document.getElementById(`icon-${key}`);
+                const msg = document.getElementById(`msg-${key}`);
+                icon.className = 'step-icon bg-indigo-200 text-gray-400';
+                msg.innerHTML = `${STEP_NAMES[key].label}... <span class="text-indigo-300">等待中</span>`;
             }
+
+            const url = `/api/generate/stream?topic=${encodeURIComponent(topic)}&requirements=${encodeURIComponent(requirements)}`;
+            const evtSource = new EventSource(url);
+
+            evtSource.addEventListener('progress', (e) => {
+                const data = JSON.parse(e.data);
+                const step = data.step;
+                const icon = document.getElementById(`icon-${step}`);
+                const msg = document.getElementById(`msg-${step}`);
+                if (!icon || !msg) return;
+
+                if (data.status === 'running') {
+                    icon.className = 'step-icon bg-indigo-600 text-white';
+                    icon.innerHTML = '<div class="spinner-sm"></div>';
+                    msg.innerHTML = `<span class="text-indigo-700 font-medium">${data.message}</span>`;
+                } else if (data.status === 'done') {
+                    icon.className = 'step-icon bg-green-500 text-white';
+                    icon.innerHTML = '✓';
+                    msg.innerHTML = `<span class="text-green-700">${data.message}</span>`;
+                }
+            });
+
+            evtSource.addEventListener('result', (e) => {
+                const data = JSON.parse(e.data);
+                evtSource.close();
+                renderResult(container, data.result);
+                btn.disabled = false;
+            });
+
+            evtSource.addEventListener('error', (e) => {
+                // EventSource 在非 SSE 响应或连接断开时触发
+                // 尝试读取最后的事件数据
+                if (e.data) {
+                    try {
+                        const data = JSON.parse(e.data);
+                        renderError(container, data.error || '未知错误');
+                    } catch { }
+                }
+                evtSource.close();
+                btn.disabled = false;
+            });
         });
 
         // 改写
