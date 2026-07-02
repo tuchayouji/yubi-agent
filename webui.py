@@ -250,6 +250,30 @@ MIME_MAP = {"md": "text/markdown", "docx": "application/vnd.openxmlformats-offic
 EXPORT_FUNCS = {"md": export.export_md, "docx": export.export_docx, "pdf": export.export_pdf}
 
 
+@app.post("/api/re-evaluate/{article_id}")
+async def re_evaluate(article_id: str):
+    """重新测评文章质量，更新索引中的评分并返回。"""
+    content = get_article(article_id)
+    if content is None:
+        return JSONResponse(status_code=404, content={"success": False, "error": "文章不存在"})
+
+    try:
+        from quality.validators import ai_check_quality
+        quality_result = ai_check_quality(content)
+
+        # 更新索引中的 quality 数据
+        index = _load_index()
+        for entry in index:
+            if entry["id"] == article_id:
+                entry["quality"] = quality_result
+                break
+        _save_index(index)
+
+        return {"success": True, "quality": quality_result}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+
+
 @app.get("/api/download/{article_id}")
 async def download_article(article_id: str, format: str = "md"):
     """下载文章（支持 md / docx / pdf）。"""
