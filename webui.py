@@ -232,6 +232,25 @@ async def get_article_by_id(article_id: str):
         if entry["id"] == article_id:
             quality = entry.get("quality")
             break
+
+    # 对旧文章没有 quality 数据的，当场算一个
+    if quality is None and content:
+        from quality.validators import check_quality
+        qr = check_quality(content)
+        passed = sum(1 for c in qr.checks if c.passed)
+        total = len(qr.checks)
+        quality = {
+            "passed": qr.passed,
+            "score": passed / max(total, 1) * 100,
+            "checks": [{"name": c.name, "passed": c.passed, "detail": c.detail} for c in qr.checks],
+        }
+        # 顺手存进索引，下次直接读取
+        for entry in index:
+            if entry["id"] == article_id:
+                entry["quality"] = quality
+                break
+        _save_index(index)
+
     return {"success": True, "content": content, "quality": quality}
 
 
