@@ -141,7 +141,7 @@ def _progress_yield(event_type: str, data: dict):
 
 
 @app.get("/api/generate/stream")
-async def generate_stream(topic: str, requirements: str = "1000字, 博客风格"):
+async def generate_stream(topic: str, requirements: str = "1000字, 博客风格", genre: str = None):
     """生成文章（SSE 流式推送进度）。"""
 
     def generate():
@@ -156,7 +156,7 @@ async def generate_stream(topic: str, requirements: str = "1000字, 博客风格
 
             # ① 行为约束
             yield from _progress_yield("progress", {"step": "constraint", "status": "running", "message": "① 行为约束应用..."})
-            constrained = constraint.apply_constraint(messages, mode="generate")
+            constrained = constraint.apply_constraint(messages, mode="generate", genre=genre)
             yield from _progress_yield("progress", {"step": "constraint", "status": "done", "message": "① 行为约束应用 ✅"})
 
             # ② 流程编排
@@ -224,6 +224,29 @@ async def get_articles(limit: int = 50):
     """获取文章列表（最新在前）。"""
     articles = list_articles(limit)
     return {"success": True, "articles": articles}
+
+
+@app.get("/api/articles/search")
+async def search_articles(q: str, limit: int = 50):
+    """搜索历史文章，按关键词匹配 topic 和内容。"""
+    if not q or not q.strip():
+        return {"success": True, "articles": []}
+
+    keyword = q.strip().lower()
+    articles = list_articles(limit)
+    results = []
+
+    for article in articles:
+        # 匹配主题
+        if keyword in article.get("topic", "").lower():
+            results.append(article)
+            continue
+        # 匹配内容（读文件）
+        content = get_article(article["id"])
+        if content and keyword in content.lower():
+            results.append(article)
+
+    return {"success": True, "articles": results, "keyword": q}
 
 
 @app.get("/api/articles/{article_id}")

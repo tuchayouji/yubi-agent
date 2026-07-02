@@ -130,9 +130,13 @@ def ai_check_quality(article: str) -> dict:
 
     checks = []
     for dim in dims:
-        data = result.get(dim, {"score": 0, "reason": "未评分"})
-        score = data.get("score", 0)
-        reason = data.get("reason", "")
+        raw = result.get(dim, {"score": 0, "reason": "未评分"})
+        if isinstance(raw, (int, float)):
+            score = int(raw)
+            reason = ""
+        else:
+            score = raw.get("score", 0)
+            reason = raw.get("reason", "")
         passed = score >= 60
         checks.append({
             "name": name_map.get(dim, dim),

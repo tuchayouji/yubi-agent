@@ -11,13 +11,13 @@ SYSTEM_RULES = """\
 """
 
 
-def harness_write(topic: str, requirements: str) -> str:
+def harness_write(topic: str, requirements: str, genre: str = None) -> str:
     """生成文章：经过完整的六大组件管控。"""
     messages = context.build_context(
         system_rules=SYSTEM_RULES,
         current_request={"topic": topic, "requirements": requirements}
     )
-    constrained = constraint.apply_constraint(messages, mode="generate")
+    constrained = constraint.apply_constraint(messages, mode="generate", genre=genre)
     output = pipeline.run_pipeline(constrained)
     result = quality.check_and_rewrite(
         article=output.article,

@@ -172,6 +172,9 @@
                 <h3 class="text-sm font-semibold text-indigo-900">历史文章</h3>
                 <span id="history-count" class="text-xs text-indigo-400">0 篇</span>
             </div>
+            <div class="mb-3">
+                <input id="history-search" type="text" placeholder="搜索文章..." class="input-field w-full px-3 py-2 text-sm" oninput="searchHistory()">
+            </div>
             <div id="history-list" class="space-y-1">
                 <div class="text-sm text-gray-400 text-center py-4">暂无文章</div>
             </div>
@@ -194,6 +197,17 @@
                         <div>
                             <label for="gen-req" class="block text-sm font-medium mb-1.5">写作要求</label>
                             <textarea id="gen-req" class="input-field w-full px-4 py-2.5 text-sm resize-none" rows="3" placeholder="字数、风格、体裁等">1000字, 博客风格</textarea>
+                        </div>
+                        <div>
+                            <label for="gen-genre" class="block text-sm font-medium mb-1.5">体裁模板</label>
+                            <select id="gen-genre" class="input-field w-full px-4 py-2.5 text-sm cursor-pointer">
+                                <option value="">默认（无体裁约束）</option>
+                                <option value="blog">博客文章</option>
+                                <option value="tech">技术文档</option>
+                                <option value="marketing">营销文案</option>
+                                <option value="report">报告</option>
+                                <option value="email">邮件</option>
+                            </select>
                         </div>
                         <button id="gen-btn" class="btn-primary w-full py-2.5 rounded-lg font-medium text-sm flex items-center justify-center gap-2 cursor-pointer">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
@@ -392,8 +406,12 @@
         let historyArticles = [];
 
         function toggleHistory() {
-            document.getElementById('history-panel').classList.toggle('hidden');
-            if (!document.getElementById('history-panel').classList.contains('hidden')) {
+            const panel = document.getElementById('history-panel');
+            const isHidden = panel.classList.toggle('hidden');
+            if (!isHidden) {
+                // 打开时清空搜索框并重新加载
+                const searchInput = document.getElementById('history-search');
+                if (searchInput) searchInput.value = '';
                 loadHistory();
             }
         }
@@ -409,6 +427,29 @@
             } catch (e) {
                 console.error('加载历史失败:', e);
             }
+        }
+
+        let searchTimeout = null;
+        async function searchHistory() {
+            const query = document.getElementById('history-search').value.trim();
+            // 防抖
+            if (searchTimeout) clearTimeout(searchTimeout);
+            if (!query) {
+                renderHistoryList();
+                return;
+            }
+            searchTimeout = setTimeout(async () => {
+                try {
+                    const res = await fetch(`/api/articles/search?q=${encodeURIComponent(query)}`);
+                    const data = await res.json();
+                    if (data.success) {
+                        historyArticles = data.articles;
+                        renderHistoryList();
+                    }
+                } catch (e) {
+                    console.error('搜索失败:', e);
+                }
+            }, 300);
         }
 
         function renderHistoryList() {
@@ -756,6 +797,7 @@
         document.getElementById('gen-btn').addEventListener('click', async () => {
             const topic = document.getElementById('gen-topic').value.trim();
             const requirements = document.getElementById('gen-req').value.trim();
+            const genre = document.getElementById('gen-genre').value;
             if (!topic) { alert('请输入文章主题'); return; }
             const btn = document.getElementById('gen-btn');
             const container = document.getElementById('gen-result-container');
@@ -772,7 +814,7 @@
                 msg.innerHTML = `${STEP_NAMES[key].label}... <span class="text-indigo-300">等待中</span>`;
             }
 
-            const url = `/api/generate/stream?topic=${encodeURIComponent(topic)}&requirements=${encodeURIComponent(requirements)}`;
+            const url = `/api/generate/stream?topic=${encodeURIComponent(topic)}&requirements=${encodeURIComponent(requirements)}${genre ? '&genre=' + genre : ''}`;
             const evtSource = new EventSource(url);
 
             evtSource.addEventListener('progress', (e) => {

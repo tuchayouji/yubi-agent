@@ -1,8 +1,8 @@
 from .templates import get_constraint_template
 
 
-def apply_constraint(messages: list, mode: str) -> list:
-    constraint_template = get_constraint_template(mode)
+def apply_constraint(messages: list, mode: str, genre: str = None) -> list:
+    constraint_template = get_constraint_template(mode, genre)
 
     result = []
     for msg in messages:
