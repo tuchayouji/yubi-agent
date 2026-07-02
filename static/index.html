@@ -444,7 +444,7 @@
                     lastArticleId = articleId;
                     // 切换到生成 tab 显示
                     document.querySelector('[data-tab="generate"]').click();
-                    renderResult(container, data.content, article?.topic || '文章');
+                    renderResult(container, data.content, article?.topic || '文章', data.quality);
                 }
             } catch (e) {
                 console.error('加载文章失败:', e);

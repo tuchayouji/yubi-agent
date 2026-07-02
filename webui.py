@@ -42,7 +42,7 @@ def _save_index(index: list):
         json.dump(index, f, ensure_ascii=False, indent=2)
 
 
-def save_article(topic: str, content: str, source: str = "generate") -> str:
+def save_article(topic: str, content: str, source: str = "generate", quality: dict = None) -> str:
     """保存文章到 generated/ 目录，返回 article_id。"""
     article_id = time.strftime("%Y%m%d%H%M%S") + "-" + uuid.uuid4().hex[:6]
     filename = f"{article_id}.md"
@@ -52,14 +52,17 @@ def save_article(topic: str, content: str, source: str = "generate") -> str:
         f.write(content)
 
     index = _load_index()
-    index.insert(0, {
+    entry = {
         "id": article_id,
         "topic": topic,
         "source": source,
         "filename": filename,
         "created_at": time.strftime("%Y-%m-%d %H:%M:%S"),
         "char_count": len(content),
-    })
+    }
+    if quality:
+        entry["quality"] = quality
+    index.insert(0, entry)
     _save_index(index)
 
     return article_id
@@ -168,7 +171,7 @@ async def generate_stream(topic: str, requirements: str = "1000字, 博客风格
             yield from _progress_yield("progress", {"step": "resilience", "status": "done", "message": "④ 异常容错全程守护 🤖"})
 
             # 保存文章
-            article_id = save_article(topic, result, source="generate")
+            article_id = save_article(topic, result, source="generate", quality=quality_summary)
 
             yield from _progress_yield("result", {"result": result, "article_id": article_id, "quality": quality_summary})
 
@@ -222,7 +225,14 @@ async def get_article_by_id(article_id: str):
     content = get_article(article_id)
     if content is None:
         return JSONResponse(status_code=404, content={"success": False, "error": "文章不存在"})
-    return {"success": True, "content": content}
+    # 从索引中查找 quality 数据
+    index = _load_index()
+    quality = None
+    for entry in index:
+        if entry["id"] == article_id:
+            quality = entry.get("quality")
+            break
+    return {"success": True, "content": content, "quality": quality}
 
 
 MIME_MAP = {"md": "text/markdown", "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "pdf": "application/pdf"}
