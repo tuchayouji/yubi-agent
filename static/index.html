@@ -497,19 +497,16 @@
             // 评分卡片
             let qualityCard = '';
             if (quality && quality.checks) {
-                const names = { completeness: '完整性', logic: '逻辑性', format: '格式' };
                 const passed = quality.checks.filter(c => c.passed).length;
                 const total = quality.checks.length;
-                const score = Math.round(passed / total * 100);
+                const score = quality.score !== undefined ? quality.score : Math.round(passed / total * 100);
 
                 let checksHtml = '';
                 quality.checks.forEach(c => {
-                    const label = names[c.name] || c.name;
                     const barColor = c.passed ? 'bg-green-500' : 'bg-red-400';
-                    const barText = c.passed ? '100%' : '0%';
                     checksHtml += `
                         <div class="flex items-center gap-3">
-                            <span class="text-xs text-gray-500 w-16 flex-shrink-0">${label}</span>
+                            <span class="text-xs text-gray-500 w-20 flex-shrink-0">${c.name}</span>
                             <div class="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
                                 <div class="h-full ${barColor} rounded-full transition-all duration-500" style="width: ${c.passed ? '100' : '0'}%"></div>
                             </div>
