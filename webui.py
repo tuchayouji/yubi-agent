@@ -82,6 +82,21 @@ def list_articles(limit: int = 50) -> list:
     return _load_index()[:limit]
 
 
+def delete_article(article_id: str) -> bool:
+    """删除文章（移除索引并删除 .md 文件）。"""
+    index = _load_index()
+    new_index = [e for e in index if e["id"] != article_id]
+    if len(new_index) == len(index):
+        return False  # 没找到
+    _save_index(new_index)
+
+    # 删除 .md 文件
+    filepath = os.path.join(GENERATED_DIR, f"{article_id}.md")
+    if os.path.exists(filepath):
+        os.remove(filepath)
+    return True
+
+
 # ─── API ───
 
 
@@ -244,6 +259,14 @@ async def get_article_by_id(article_id: str):
         _save_index(index)
 
     return {"success": True, "content": content, "quality": quality}
+
+
+@app.delete("/api/articles/{article_id}")
+async def delete_article_endpoint(article_id: str):
+    """删除文章（索引 + .md 文件）。"""
+    if delete_article(article_id):
+        return {"success": True, "message": "文章已删除"}
+    return JSONResponse(status_code=404, content={"success": False, "error": "文章不存在"})
 
 
 MIME_MAP = {"md": "text/markdown", "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "pdf": "application/pdf"}

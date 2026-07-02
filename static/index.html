@@ -422,13 +422,17 @@
             }
 
             list.innerHTML = historyArticles.map(a => `
-                <div class="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-indigo-50 cursor-pointer transition-colors text-sm"
-                     onclick="loadArticle('${a.id}')">
-                    <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-indigo-50 transition-colors text-sm group">
+                    <div class="flex-1 min-w-0 cursor-pointer" onclick="loadArticle('${a.id}')">
                         <div class="text-gray-800 truncate font-medium">${a.topic}</div>
                         <div class="text-gray-400 text-xs">${a.created_at} · ${a.char_count} 字 · ${a.source}</div>
                     </div>
-                    <svg class="w-4 h-4 text-indigo-300 flex-shrink-0 ml-2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                    <div class="flex items-center gap-1 flex-shrink-0 ml-2">
+                        <svg class="w-4 h-4 text-indigo-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                        <button onclick="event.stopPropagation();deleteArticle('${a.id}')" class="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all cursor-pointer" title="删除">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                        </button>
+                    </div>
                 </div>
             `).join('');
         }
@@ -448,6 +452,23 @@
                 }
             } catch (e) {
                 console.error('加载文章失败:', e);
+            }
+        }
+
+        async function deleteArticle(articleId) {
+            if (!confirm('确定删除这篇历史文章？删除后无法恢复。')) return;
+            try {
+                const res = await fetch(`/api/articles/${articleId}`, { method: 'DELETE' });
+                const data = await res.json();
+                if (data.success) {
+                    // 从前端列表中移除
+                    historyArticles = historyArticles.filter(a => a.id !== articleId);
+                    renderHistoryList();
+                } else {
+                    alert('删除失败: ' + (data.error || '未知错误'));
+                }
+            } catch (e) {
+                alert('删除失败: ' + e.message);
             }
         }
 
