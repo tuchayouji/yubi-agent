@@ -490,9 +490,51 @@
             return text.trim();
         }
 
-        function renderResult(container, markdown, topic) {
+        function renderResult(container, markdown, topic, quality) {
             lastMarkdown = cleanMarkdown(markdown || '');
             if (topic) lastTopic = topic;
+
+            // 评分卡片
+            let qualityCard = '';
+            if (quality && quality.checks) {
+                const names = { completeness: '完整性', logic: '逻辑性', format: '格式' };
+                const passed = quality.checks.filter(c => c.passed).length;
+                const total = quality.checks.length;
+                const score = Math.round(passed / total * 100);
+
+                let checksHtml = '';
+                quality.checks.forEach(c => {
+                    const label = names[c.name] || c.name;
+                    const barColor = c.passed ? 'bg-green-500' : 'bg-red-400';
+                    const barText = c.passed ? '100%' : '0%';
+                    checksHtml += `
+                        <div class="flex items-center gap-3">
+                            <span class="text-xs text-gray-500 w-16 flex-shrink-0">${label}</span>
+                            <div class="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                                <div class="h-full ${barColor} rounded-full transition-all duration-500" style="width: ${c.passed ? '100' : '0'}%"></div>
+                            </div>
+                            <span class="text-xs ${c.passed ? 'text-green-600' : 'text-red-500'} font-medium w-12 text-right">${c.passed ? '通过' : '未过'}</span>
+                        </div>
+                    `;
+                });
+
+                qualityCard = `
+                    <div class="bg-white border border-indigo-100 rounded-lg p-4 mb-4">
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="flex items-center gap-2">
+                                <svg class="w-4 h-4 ${score >= 66 ? 'text-green-500' : score >= 33 ? 'text-yellow-500' : 'text-red-500'}" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                <span class="text-sm font-medium text-gray-700">质量评分</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <div class="text-lg font-bold ${score >= 66 ? 'text-green-600' : score >= 33 ? 'text-yellow-600' : 'text-red-600'}">${score}</div>
+                                <span class="text-xs text-gray-400">/ 100</span>
+                                <span class="text-xs px-2 py-0.5 rounded-full ${quality.passed ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'} font-medium ml-1">${quality.passed ? '合格' : '需检查'}</span>
+                            </div>
+                        </div>
+                        <div class="space-y-2">${checksHtml}</div>
+                    </div>
+                `;
+            }
 
             const toolbar = `
                 <div class="flex items-center justify-end gap-2 mb-3 pb-2 border-b border-indigo-100">
@@ -515,7 +557,7 @@
             `;
 
             const html = marked.parse(lastMarkdown || '');
-            container.innerHTML = toolbar + `<div class="result-content fade-in">${html}</div>`;
+            container.innerHTML = toolbar + qualityCard + `<div class="result-content fade-in">${html}</div>`;
 
             // 给所有 <pre> 替换为容器+header+pre 结构（让 header 不随内容滚动）
             container.querySelectorAll('pre').forEach(pre => {
@@ -704,7 +746,7 @@
             evtSource.addEventListener('result', (e) => {
                 const data = JSON.parse(e.data);
                 evtSource.close();
-                renderResult(container, data.result, topic);
+                renderResult(container, data.result, topic, data.quality);
                 if (data.article_id) {
                     lastArticleId = data.article_id;
                     addToHistory({

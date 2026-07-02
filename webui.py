@@ -152,6 +152,16 @@ async def generate_stream(topic: str, requirements: str = "1000字, 博客风格
                 article=output.article,
                 outline=output.outline
             )
+            # 再次校验以获取最终评分（含重写后的分数）
+            qr = quality.check_quality(result, output.outline)
+            quality_summary = {
+                "passed": qr.passed,
+                "score": sum(1 for c in qr.checks if c.passed) / max(len(qr.checks), 1) * 100,
+                "checks": [
+                    {"name": c.name, "passed": c.passed, "detail": c.detail}
+                    for c in qr.checks
+                ],
+            }
             yield from _progress_yield("progress", {"step": "quality", "status": "done", "message": "③ 质量校验 ✅"})
 
             # ④ 异常容错全程覆盖
@@ -160,7 +170,7 @@ async def generate_stream(topic: str, requirements: str = "1000字, 博客风格
             # 保存文章
             article_id = save_article(topic, result, source="generate")
 
-            yield from _progress_yield("result", {"result": result, "article_id": article_id})
+            yield from _progress_yield("result", {"result": result, "article_id": article_id, "quality": quality_summary})
 
         except Exception as e:
             yield from _progress_yield("error", {"error": str(e)})
