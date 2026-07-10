@@ -5,3 +5,6 @@ __pycache__/
 venv/
 *.egg-info/
 .pytest_cache/
+docs
+task_plan.md
+未来功能规划.md
