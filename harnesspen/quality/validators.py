@@ -1,7 +1,7 @@
 import re
 import json
 from pydantic import BaseModel
-from utils.llm import create_llm
+from harnesspen.utils.llm import create_llm
 
 
 class CheckResult(BaseModel):

@@ -1,5 +1,5 @@
 import os
-from config import Settings
+from harnesspen.config import Settings
 
 
 def test_settings_defaults():

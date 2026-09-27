@@ -1,6 +1,6 @@
 import logging
-from resilience import safe_invoke
-from utils.llm import create_llm
+from harnesspen.resilience import safe_invoke
+from harnesspen.utils.llm import create_llm
 
 logger = logging.getLogger(__name__)
 

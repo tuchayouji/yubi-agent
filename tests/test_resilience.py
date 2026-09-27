@@ -1,5 +1,5 @@
 from unittest.mock import MagicMock
-from resilience import safe_invoke, Result
+from harnesspen.resilience import safe_invoke, Result
 
 
 def test_safe_invoke_success():

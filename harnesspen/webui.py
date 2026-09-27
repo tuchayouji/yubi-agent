@@ -2,6 +2,7 @@
 
 import json
 import os
+from pathlib import Path
 import time
 import uuid
 import uvicorn
@@ -10,23 +11,26 @@ from fastapi.responses import HTMLResponse, JSONResponse, Response, StreamingRes
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-import agent
-import basic_agent
-import context
-import constraint
-import pipeline
-import quality
-from utils import export
+from harnesspen import agent
+from harnesspen import basic_agent
+from harnesspen import context
+from harnesspen import constraint
+from harnesspen import pipeline
+from harnesspen import quality
+from harnesspen.utils import export
 
 app = FastAPI(title="驭笔 HarnessPen", description="基于 Harness Engineering 的智能写作助手")
 
-# 静态文件服务
-app.mount("/static", StaticFiles(directory="static"), name="static")
-
-# ─── 文章存储 ───
-GENERATED_DIR = "generated"
+# ─── 路径定义 ───
+BASE_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = BASE_DIR.parent
+GENERATED_DIR = str(PROJECT_ROOT / "generated")
 INDEX_FILE = os.path.join(GENERATED_DIR, "index.json")
 
+# 静态文件服务
+app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
+
+# ─── 文章存储 ───
 os.makedirs(GENERATED_DIR, exist_ok=True)
 
 
@@ -118,7 +122,7 @@ class CompareRequest(BaseModel):
 @app.get("/", response_class=HTMLResponse)
 async def index():
     """返回主页面。"""
-    with open("static/index.html", "r", encoding="utf-8") as f:
+    with open(BASE_DIR / "static" / "index.html", "r", encoding="utf-8") as f:
         return HTMLResponse(content=f.read())
 
 
@@ -265,7 +269,7 @@ async def get_article_by_id(article_id: str):
 
     # 对旧文章没有 quality 数据的，当场算一个
     if quality is None and content:
-        from quality.validators import check_quality
+        from harnesspen.quality.validators import check_quality
         qr = check_quality(content)
         passed = sum(1 for c in qr.checks if c.passed)
         total = len(qr.checks)
@@ -304,7 +308,7 @@ async def re_evaluate(article_id: str):
         return JSONResponse(status_code=404, content={"success": False, "error": "文章不存在"})
 
     try:
-        from quality.validators import ai_check_quality
+        from harnesspen.quality.validators import ai_check_quality
         quality_result = ai_check_quality(content)
 
         # 更新索引中的 quality 数据

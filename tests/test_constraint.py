@@ -1,4 +1,4 @@
-from constraint import apply_constraint
+from harnesspen.constraint import apply_constraint
 
 
 def test_apply_constraint_generate_mode():

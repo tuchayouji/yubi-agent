@@ -1,5 +1,5 @@
 import logging
-from config import settings
+from harnesspen.config import settings
 
 logger = logging.getLogger(__name__)
 

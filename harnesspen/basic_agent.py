@@ -1,6 +1,6 @@
 """基础版写作 Agent — 无任何驾驭工程组件，用于对比展示。"""
 
-from utils.llm import invoke_llm
+from harnesspen.utils.llm import invoke_llm
 
 
 def basic_write(topic: str, requirements: str) -> str:

@@ -1,5 +1,5 @@
 from langchain_openai import ChatOpenAI
-from config import settings
+from harnesspen.config import settings
 
 
 def create_llm() -> ChatOpenAI:

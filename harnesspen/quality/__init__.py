@@ -1,5 +1,5 @@
 import logging
-from config import settings
+from harnesspen.config import settings
 from .validators import check_quality
 from .rewriter import rewrite_section
 

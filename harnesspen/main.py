@@ -4,8 +4,8 @@ import typer
 from rich.console import Console
 from rich.markdown import Markdown
 
-import agent
-import basic_agent
+from harnesspen import agent
+from harnesspen import basic_agent
 
 app = typer.Typer(help="驭笔 HarnessPen — 基于 Harness Engineering 的智能写作助手")
 console = Console()

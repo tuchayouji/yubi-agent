@@ -1,6 +1,6 @@
 from unittest.mock import patch, MagicMock
-from pipeline import run_pipeline, PipelineOutput
-from pipeline.state import PipelineState
+from harnesspen.pipeline import run_pipeline, PipelineOutput
+from harnesspen.pipeline.state import PipelineState
 
 
 def test_pipeline_output_model():
@@ -25,8 +25,8 @@ def test_pipeline_state_typeddict():
 
 
 def test_run_pipeline_generate_with_mock():
-    with patch("pipeline.nodes.safe_invoke") as mock_safe, \
-         patch("pipeline.nodes.create_llm") as mock_create:
+    with patch("harnesspen.pipeline.nodes.safe_invoke") as mock_safe, \
+         patch("harnesspen.pipeline.nodes.create_llm") as mock_create:
         mock_llm = MagicMock()
         mock_create.return_value = mock_llm
         mock_safe.side_effect = [
@@ -45,8 +45,8 @@ def test_run_pipeline_generate_with_mock():
 
 
 def test_run_pipeline_rewrite_with_mock():
-    with patch("pipeline.nodes.safe_invoke") as mock_safe, \
-         patch("pipeline.nodes.create_llm") as mock_create:
+    with patch("harnesspen.pipeline.nodes.safe_invoke") as mock_safe, \
+         patch("harnesspen.pipeline.nodes.create_llm") as mock_create:
         mock_create.return_value = MagicMock()
         mock_safe.side_effect = [
             MagicMock(data="核心要点: AI发展"),

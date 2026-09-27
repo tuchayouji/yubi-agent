@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from config import settings
+from harnesspen.config import settings
 from .retry import retry_with_backoff
 from .fallback import get_fallback_content
 

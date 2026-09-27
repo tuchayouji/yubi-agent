@@ -1,5 +1,5 @@
 from unittest.mock import patch, MagicMock
-from tool_system import call_tool, ToolResult
+from harnesspen.tool_system import call_tool, ToolResult
 
 
 def test_toolresult_model():
@@ -16,7 +16,7 @@ def test_call_tool_rejected_not_in_whitelist():
 
 
 def test_call_tool_search_success():
-    with patch("tool_system.search.SearchTool.execute") as mock_execute:
+    with patch("harnesspen.tool_system.search.SearchTool.execute") as mock_execute:
         mock_execute.return_value = "search results here"
         result = call_tool("search", {"query": "AI trends"})
         assert result.success is True
@@ -30,7 +30,7 @@ def test_call_tool_search_rejected_bad_args():
 
 
 def test_call_tool_search_failure_returns_graceful():
-    with patch("tool_system.search.SearchTool.execute") as mock_execute:
+    with patch("harnesspen.tool_system.search.SearchTool.execute") as mock_execute:
         mock_execute.side_effect = Exception("API down")
         result = call_tool("search", {"query": "test"})
         assert result.success is False

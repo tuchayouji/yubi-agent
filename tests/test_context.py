@@ -1,4 +1,4 @@
-from context import build_context
+from harnesspen.context import build_context
 
 
 def test_build_context_basic():

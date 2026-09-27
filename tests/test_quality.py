@@ -1,5 +1,5 @@
-from quality import check_and_rewrite
-from quality.validators import check_quality, CheckResult, QualityResult
+from harnesspen.quality import check_and_rewrite
+from harnesspen.quality.validators import check_quality, CheckResult, QualityResult
 
 
 def test_check_result_model():
