@@ -82,12 +82,16 @@ pip install -r requirements.txt
 复制 `.env.example` 为 `.env` 并填入你的 API Key：
 ```bash
 cp .env.example .env
-# 编辑 .env 文件，填入 OPENAI_API_KEY, TAVILY_API_KEY 等
+# 编辑 .env 文件，填入 LLM_API_KEY, SEARCH_API_KEY 等
 ```
 
-4. **启动服务**
+4. **启动服务**（需在项目根目录执行）
 ```bash
-python main.py
+# Web 界面 → 浏览器打开 http://127.0.0.1:8000
+python -m harnesspen.webui
+
+# 或使用命令行 CLI
+python -m harnesspen.main generate -t "文章主题" -r "1000字, 博客风格"
 ```
 
 ---
@@ -96,12 +100,27 @@ python main.py
 
 ```text
 yubi-agent/
-├── agents/          # LangGraph Agent 定义与状态管理
-├── harnesses/       # 六大驾驭组件核心逻辑
-├── api/             # FastAPI 路由与 SSE 实现
-├── utils/           # 工具函数 (Logger, safe_invoke 等)
-├── tests/           # 单元测试与评估脚本
-└── docs/            # 架构图与文档
+├── harnesspen/        # 应用代码包
+│   ├── main.py        # CLI 入口（typer）
+│   ├── webui.py       # Web UI（FastAPI + SSE 流式生成）
+│   ├── config.py      # 配置（读取根目录 .env）
+│   ├── agent.py       # 驭笔版写作 Agent（全链路管控）
+│   ├── basic_agent.py # 基础版写作 Agent（无驾驭工程，用于对比）
+│   ├── constraint/    # ① 行为约束驾驭
+│   ├── pipeline/      # ② 流程编排驾驭（LangGraph StateGraph）
+│   ├── quality/       # ③ 质量校验驾驭
+│   ├── resilience/    # ④ 异常容错驾驭
+│   ├── context/       # ⑤ 结构化上下文驾驭
+│   ├── tool_system/   # ⑥ 工具系统驾驭
+│   ├── utils/         # LLM 封装、文档导出（md/docx/pdf）
+│   └── static/        # Web 前端资源
+├── tests/             # 单元测试（pytest）
+├── docs/              # 项目文档
+├── generated/         # 生成的文章（运行产物）
+├── outputs/           # 导出示例文件
+├── .env               # 环境配置（不入库）
+├── .env.example       # 配置模板
+└── requirements.txt   # 依赖清单
 ```
 
 ---
