@@ -13,7 +13,7 @@
 本项目不仅是 LLM 的简单调用，更包含了大量针对生产环境的工程化实践：
 
 - **全栈异步架构：** 后端采用 **FastAPI + Python Asyncio**，前端通过 **SSE (Server-Sent Events)** 实现毫秒级流式响应，体验丝滑。
-- **深度 RAG 检索增强：** 集成混合检索（关键词+语义向量）与 **Rerank 重排序**机制，配合 Tavily 联网搜索，确保内容准确实时。
+- **联网搜索增强：** 集成 **Tavily** 实时联网搜索，写作过程中可检索最新资讯，为事实类内容提供依据。
 - **AI 辅助开发全流程：** 项目全程使用 **Claude Code** 进行辅助编程与 Code Review，并内置了自研的 **LLM 质量评估系统**（Eval Harness），用模型质检模型。
 - **工业级容错设计：** 针对外部 API 调用设计了 `safe_invoke` 机制，支持指数退避重试与熔断，保证工作流稳定性。
 
@@ -59,7 +59,7 @@
 
 - **核心框架:** Python 3.11, LangChain, LangGraph
 - **Web 服务:** FastAPI, Uvicorn, SSE (Streaming)
-- **AI & RAG:** OpenAI API / Claude API, Tavily Search, ChromaDB/Faiss
+- **AI & 检索:** OpenAI 兼容 API（langchain-openai）, Tavily Search
 - **工程化工具:** Pydantic (数据校验), Rich (CLI 美化), Pytest (单元测试)
 - **开发辅助:** **Claude Code** (AI Pair Programming)
 
